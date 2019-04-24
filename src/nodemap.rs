@@ -344,7 +344,7 @@ where
 
             // 3
             match element.remove("@type") {
-                Some(JValue::Array(mut elems)) => {
+                Some(JValue::Array(elems)) => {
                     // If element has an @type member, perform for each item the following steps:
                     //    If item is a blank node identifier, replace it with a newly generated blank node identifier passing item for identifier.
                     let elems = elems

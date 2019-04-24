@@ -1,17 +1,24 @@
 #![feature(never_type)]
+#![feature(futures_api)]
+#![feature(async_await)]
+#![feature(await_macro)]
+#![feature(gen_future)]
 
 extern crate jsonld;
 extern crate serde;
 #[macro_use]
 extern crate serde_derive;
-extern crate futures_await as futures;
 extern crate serde_json;
 extern crate url;
+extern crate tokio;
 
 use jsonld::{compact, JsonLdOptions, RemoteContextLoader};
 
 use serde_json::Value;
+
 use std::fs::File;
+use std::future::*;
+use std::pin::Pin;
 
 #[derive(Deserialize)]
 struct SequenceOptions {
@@ -38,9 +45,6 @@ struct FakeSequence {
     option: Option<SequenceOptions>,
 }
 
-use futures::future;
-use futures::prelude::*;
-
 #[derive(Deserialize)]
 struct FakeManifest {
     #[serde(rename = "baseIri")]
@@ -53,17 +57,23 @@ struct TestContextLoader {}
 
 impl RemoteContextLoader for TestContextLoader {
     type Error = !;
-    type Future = future::FutureResult<Value, Self::Error>;
+    type Future = Pin<Box<Future<Output = Result<Value, Self::Error>>>>;
 
     fn load_context(_url: String) -> Self::Future {
-        future::ok(Value::Null)
+        Box::pin(async { Ok(Value::Null) })
     }
 }
 
 fn get_data(name: &str) -> Value {
-    let f = File::open(&("tests/".to_owned() + name)).expect("file fail");
+    let f = File::open(&("resources/".to_owned() + name)).expect("file fail");
 
     serde_json::from_reader(f).expect("json fail")
+}
+
+fn wait<I, E>(f: impl Future<Output=Result<I, E>>) -> Result<I, E> {
+    use tokio::prelude::Future;
+    use tokio_async_await::compat::backward;
+    backward::Compat::new(f).wait()
 }
 
 fn run_single_seq(seq: FakeSequence, base_iri: &str) {
@@ -85,7 +95,7 @@ fn run_single_seq(seq: FakeSequence, base_iri: &str) {
 
     println!("{:?}", context);
 
-    let res = compact::<TestContextLoader>(
+    let future = compact::<TestContextLoader>(
         input,
         context,
         JsonLdOptions {
@@ -94,8 +104,9 @@ fn run_single_seq(seq: FakeSequence, base_iri: &str) {
             expand_context: None,
             processing_mode: None,
         },
-    )
-    .wait();
+    );
+
+    let res = wait(future);
 
     match res {
         Ok(res) => {
@@ -116,7 +127,8 @@ fn run_single_seq(seq: FakeSequence, base_iri: &str) {
     }
 }
 
-fn main() {
+#[test]
+fn test() {
     let data: FakeManifest = serde_json::from_value(get_data("compact-manifest.jsonld")).unwrap();
     for seq in data.sequence {
         run_single_seq(seq, &data.base_iri);

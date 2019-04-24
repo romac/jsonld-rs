@@ -1,3 +1,3 @@
-[submodule "tests"]
-	path = tests
+[submodule "resources"]
+	path = resources
 	url = https://github.com/json-ld/tests

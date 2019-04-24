@@ -1,4 +1,11 @@
-#![feature(generators, const_vec_new)]
+#![feature(async_await)]
+#![feature(await_macro)]
+#![feature(const_vec_new)]
+#![feature(futures_api)]
+// #![feature(gen_future)]
+// #![feature(generator_trait)]
+// #![feature(generators)]
+#![feature(never_type)]
 
 #[macro_use]
 extern crate lazy_static;
@@ -8,8 +15,6 @@ extern crate url;
 extern crate serde;
 extern crate serde_json;
 
-extern crate futures_await as futures;
-
 mod compact;
 mod context;
 mod creation;
@@ -18,24 +23,23 @@ pub mod nodemap;
 pub mod rdf;
 
 mod api;
-pub use api::*;
+pub use crate::api::*;
 
 use std::error::Error;
 use std::fmt::Debug;
+use std::future::Future;
 
 /// All the errors that may be returned by specific parts of the API.
 pub mod error {
-    pub use compact::CompactionError;
-    pub use creation::{ContextCreationError, TermCreationError};
-    pub use expand::ExpansionError;
+    pub use crate::compact::CompactionError;
+    pub use crate::creation::{ContextCreationError, TermCreationError};
+    pub use crate::expand::ExpansionError;
 }
-
-use futures::prelude::*;
 
 /// This trait is implemented by consumers of the API, to provide remote contexts.
 pub trait RemoteContextLoader: Debug {
     type Error: Error + Send + Debug;
-    type Future: Future<Item = serde_json::Value, Error = Self::Error> + Send + 'static;
+    type Future: Future<Output = Result<serde_json::Value, Self::Error>> + 'static;
 
     /// Loads a remote JSON-LD context into memory.
     fn load_context(url: String) -> Self::Future;

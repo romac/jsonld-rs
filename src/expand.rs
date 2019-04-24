@@ -5,8 +5,8 @@ use serde_json::{Map, Value};
 use std::collections::HashMap;
 use std::error::Error;
 use std::fmt;
-
-use futures::prelude::{await, *};
+use std::future::Future;
+use std::pin::Pin;
 
 #[derive(Debug)]
 /// Errors that may occur when expanding a JSON-LD structure.
@@ -148,8 +148,7 @@ impl Context {
         Value::Object(resmap)
     }
 
-    #[async(boxed_send)]
-    fn _expand<T: RemoteContextLoader>(
+    async fn _expand<T: RemoteContextLoader>(
         active_context: Context,
         active_property: Option<String>,
         elem: Value,
@@ -162,11 +161,12 @@ impl Context {
                 let mut res = Vec::new();
                 for item in arr {
                     // 3.2.1
-                    let expanded_item = await!(Context::_expand::<T>(
+                    let pinned: Pin<Box<Future<Output = _>>> = Box::pin(Context::_expand::<T>(
                         active_context.clone(),
                         active_property.clone(),
-                        item
-                    ))?;
+                        item,
+                    ));
+                    let expanded_item = await!(pinned)?;
 
                     // 3.2.2
                     if _array_or_list_object(&expanded_item) {
@@ -288,11 +288,13 @@ impl Context {
 
                             // 7.4.5
                             "@graph" => {
-                                expanded_value = await!(Context::_expand::<T>(
-                                    active_context.clone(),
-                                    Some(prop.to_owned()),
-                                    value
-                                ))?
+                                let pinned: Pin<Box<Future<Output = _>>> =
+                                    Box::pin(Context::_expand::<T>(
+                                        active_context.clone(),
+                                        Some(prop.to_owned()),
+                                        value,
+                                    ));
+                                expanded_value = await!(pinned)?
                             }
 
                             // 7.4.6
@@ -335,11 +337,14 @@ impl Context {
                                 }
 
                                 // 7.4.9.2
-                                let tex = await!(Context::_expand::<T>(
-                                    active_context.clone(),
-                                    active_property.to_owned(),
-                                    value
-                                ))?;
+
+                                let pinned: Pin<Box<Future<Output = _>>> =
+                                    Box::pin(Context::_expand::<T>(
+                                        active_context.clone(),
+                                        active_property.to_owned(),
+                                        value,
+                                    ));
+                                let tex = await!(pinned)?;
 
                                 // 7.4.9.3
                                 if let Value::Object(ref obj) = tex {
@@ -358,22 +363,26 @@ impl Context {
 
                             // 7.4.10
                             "@set" => {
-                                expanded_value = await!(Context::_expand::<T>(
-                                    active_context.clone(),
-                                    active_property.to_owned(),
-                                    value
-                                ))?;
+                                let pinned: Pin<Box<Future<Output = _>>> =
+                                    Box::pin(Context::_expand::<T>(
+                                        active_context.clone(),
+                                        active_property.to_owned(),
+                                        value,
+                                    ));
+                                expanded_value = await!(pinned)?;
                             }
 
                             // 7.4.11
                             "@reverse" => {
                                 if let Value::Object(obj) = value {
                                     // 7.4.11.1
-                                    expanded_value = await!(Context::_expand::<T>(
-                                        active_context.clone(),
-                                        Some(prop),
-                                        Value::Object(obj.clone()),
-                                    ))?;
+                                    let pinned: Pin<Box<Future<Output = _>>> =
+                                        Box::pin(Context::_expand::<T>(
+                                            active_context.clone(),
+                                            Some(prop),
+                                            Value::Object(obj.clone()),
+                                        ));
+                                    expanded_value = await!(pinned)?;
 
                                     if let Value::Object(mut expv) = expanded_value {
                                         // 7.4.11.2
@@ -416,7 +425,7 @@ impl Context {
                                             }
 
                                             // 7.4.11.3.2
-                                            let mut reverse_map =
+                                            let reverse_map =
                                                 result["@reverse"].as_object_mut().unwrap();
 
                                             // 7.4.11.3.3
@@ -494,7 +503,9 @@ impl Context {
                                                 continue;
                                             }
                                             if !val.is_string() {
-                                                return Err(ExpansionError::InvalidLanguageMapValue);
+                                                return Err(
+                                                    ExpansionError::InvalidLanguageMapValue,
+                                                );
                                             }
 
                                             let mut map = Map::new();
@@ -519,11 +530,14 @@ impl Context {
                                                     Value::Array(vec![index_value].into());
                                             }
 
-                                            index_value = await!(Context::_expand::<T>(
-                                                active_context.clone(),
-                                                Some(key.to_owned()),
-                                                index_value,
-                                            ))?;
+                                            let pinned: Pin<Box<Future<Output = _>>> =
+                                                Box::pin(Context::_expand::<T>(
+                                                    active_context.clone(),
+                                                    Some(key.to_owned()),
+                                                    index_value,
+                                                ));
+
+                                            index_value = await!(pinned)?;
                                             if let Value::Array(var) = index_value {
                                                 for mut item in var {
                                                     if !item
@@ -555,11 +569,14 @@ impl Context {
 
                         // 7.7
                         if expanded_value == None {
-                            expanded_value = Some(await!(Context::_expand::<T>(
-                                active_context.to_owned(),
-                                Some(key.to_owned()),
-                                value
-                            ))?);
+                            let pinned: Pin<Box<Future<Output = _>>> =
+                                Box::pin(Context::_expand::<T>(
+                                    active_context.to_owned(),
+                                    Some(key.to_owned()),
+                                    value,
+                                ));
+
+                            expanded_value = Some(await!(pinned)?);
                         }
                         let mut expanded_value = expanded_value.unwrap();
 
@@ -753,8 +770,10 @@ impl Context {
         }
     }
 
-    #[async]
-    pub fn expand<T: RemoteContextLoader>(self, elem: Value) -> Result<Value, ExpansionError<T>> {
+    pub async fn expand<T: RemoteContextLoader>(
+        self,
+        elem: Value,
+    ) -> Result<Value, ExpansionError<T>> {
         let mut val = await!(Context::_expand::<T>(self, None, elem))?;
 
         if val

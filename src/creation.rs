@@ -8,10 +8,10 @@ use std::clone::Clone;
 use std::collections::{BTreeMap, HashMap, HashSet};
 use std::error::Error;
 use std::fmt;
+use std::future::Future;
+use std::pin::Pin;
 
 use url::Url;
-
-use futures::prelude::{await, *};
 
 pub enum DefineStatus {
     Defining,
@@ -501,8 +501,7 @@ impl Context {
         Ok(())
     }
 
-    #[async(boxed_send)]
-    pub fn process_context<T: RemoteContextLoader>(
+    pub async fn process_context<T: RemoteContextLoader>(
         mut self,
         local_context: Value,
         mut remote_contexts: HashMap<String, Option<Value>>,
@@ -531,9 +530,10 @@ impl Context {
                     match remote_contexts.get(&val).cloned() {
                         Some(None) => return Err(ContextCreationError::RecursiveContextInclusion),
                         Some(Some(context)) => {
-                            let (rc, s) = await!(
-                                self.process_context::<T>(context.clone(), remote_contexts)
-                            )?;
+                            let pinned: Pin<Box<Future<Output = _>>> = Box::pin(
+                                self.process_context::<T>(context.clone(), remote_contexts),
+                            );
+                            let (rc, s) = await!(pinned)?;
                             remote_contexts = rc;
                             remote_contexts.insert(val, Some(context));
 
@@ -552,9 +552,10 @@ impl Context {
                                     .unwrap_or_else(|| Value::Object(JsonMap::new()));
 
                                 // 3.2.4
-                                let (rc, s) = await!(
-                                    self.process_context::<T>(context.clone(), remote_contexts)
-                                )?;
+                                let pinned: Pin<Box<Future<Output = _>>> = Box::pin(
+                                    self.process_context::<T>(context.clone(), remote_contexts),
+                                );
+                                let (rc, s) = await!(pinned)?;
                                 remote_contexts = rc;
                                 remote_contexts.insert(val, Some(context));
 

@@ -378,9 +378,9 @@ pub fn rdf_to_jsonld(
             continue;
         }
 
-        let mut node_map = graph_map.get_mut(&name).unwrap().as_object_mut().unwrap();
+        let node_map = graph_map.get_mut(&name).unwrap().as_object_mut().unwrap();
 
-        let mut nil = graph_object.remove(RDF_NIL).unwrap();
+        let nil = graph_object.remove(RDF_NIL).unwrap();
         for (mut node_id, mut property, mut head) in nil {
             let mut list = Vec::new();
             let mut list_nodes = Vec::new();

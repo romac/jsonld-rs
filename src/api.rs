@@ -5,11 +5,9 @@ use std::collections::HashMap;
 
 use super::RemoteContextLoader;
 
-use compact::CompactionError;
-use context::Context;
-use expand::ExpansionError;
-
-use futures::prelude::{await, *};
+use crate::compact::CompactionError;
+use crate::context::Context;
+use crate::expand::ExpansionError;
 
 /// Options that may be passed to either `compact` or `expand`.
 pub struct JsonLdOptions {
@@ -27,8 +25,7 @@ pub struct JsonLdOptions {
 }
 
 /// Compacts a JSON-LD structure according to the API specification.
-#[async]
-pub fn compact<T: RemoteContextLoader>(
+pub async fn compact<T: RemoteContextLoader>(
     input: Value,
     context: Value,
     options: JsonLdOptions,
@@ -79,8 +76,7 @@ pub fn compact<T: RemoteContextLoader>(
 }
 
 /// Expands a JSON-LD structure according to the API specification.
-#[async]
-pub fn expand<T: RemoteContextLoader>(
+pub async fn expand<T: RemoteContextLoader>(
     input: Value,
     options: JsonLdOptions,
 ) -> Result<Value, ExpansionError<T>> {

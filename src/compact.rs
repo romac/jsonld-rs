@@ -1,15 +1,13 @@
 use super::RemoteContextLoader;
-use context::{Context, Term};
+use crate::context::{Context, Term};
+use crate::creation::ContextCreationError;
+use crate::expand::ExpansionError;
 
-use creation::ContextCreationError;
-use expand::ExpansionError;
 use serde_json::{Map, Value};
 use std::cmp::Ordering;
 use std::collections::HashMap;
 use std::error::Error;
 use std::fmt;
-
-use futures::prelude::{await, *};
 
 #[derive(Debug)]
 /// Errors that might occur when compacting a JSON-LD structure.
@@ -215,8 +213,7 @@ impl InverseContext {
 }
 
 impl Context {
-    #[async]
-    pub fn compact<T: RemoteContextLoader>(
+    pub async fn compact<T: RemoteContextLoader>(
         context: Value,
         element: Value,
         compact_arrays: bool,
@@ -859,7 +856,7 @@ impl Context {
             }
 
             // 5.3
-            let mut candidate = term.to_owned() + ":" + &iri[def.iri_mapping.len()..];
+            let candidate = term.to_owned() + ":" + &iri[def.iri_mapping.len()..];
 
             let is_less = compact_iri == None
                 || (candidate.len() < compact_iri.as_ref().unwrap().len())
