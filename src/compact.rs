@@ -219,7 +219,7 @@ impl Context {
         compact_arrays: bool,
     ) -> Result<Value, CompactionError<T>> {
         let (_, ctx) = await!(Context::new().process_context::<T>(context.clone(), HashMap::new()))
-            .map_err(|e| CompactionError::ContextError(e))?;
+            .map_err(CompactionError::ContextError)?;
 
         let inverse = InverseContext::new(&ctx);
         let mut res = Context::_compact(&ctx, &inverse, None, &element, compact_arrays)?;
@@ -238,7 +238,7 @@ impl Context {
 
         if res.is_object()
             && !context.is_null()
-            && (!context.is_object() || context.as_object().unwrap().len() > 0)
+            && (!context.is_object() || !context.as_object().unwrap().is_empty())
         {
             res.as_object_mut()
                 .unwrap()
@@ -248,6 +248,7 @@ impl Context {
         Ok(res)
     }
 
+    #[allow(clippy::cognitive_complexity)]
     fn _compact<T: RemoteContextLoader>(
         active_context: &Context,
         inverse_context: &InverseContext,
@@ -379,7 +380,7 @@ impl Context {
                                             || !compact_arrays)
                                             && !value.is_array()
                                         {
-                                            value = Value::Array(vec![value].into());
+                                            value = Value::Array(vec![value]);
                                         }
 
                                         if !result.contains_key(&property) {
@@ -387,7 +388,7 @@ impl Context {
                                         } else {
                                             let mut val = result.remove(&property).unwrap();
                                             if !val.is_array() {
-                                                val = Value::Array(vec![val].into());
+                                                val = Value::Array(vec![val]);
                                             }
 
                                             if value.is_array() {
@@ -408,7 +409,7 @@ impl Context {
                                 }
                             }
 
-                            if new_map.len() > 0 {
+                            if !new_map.is_empty() {
                                 let alias = active_context._compact_iri(
                                     inverse_context,
                                     "@reverse",
@@ -465,9 +466,8 @@ impl Context {
                         if !result.contains_key(&item_active_property) {
                             result.insert(item_active_property, Value::Array(Vec::new()));
                         } else {
-                            let val = Value::Array(
-                                vec![result.remove(&item_active_property).unwrap()].into(),
-                            );
+                            let val =
+                                Value::Array(vec![result.remove(&item_active_property).unwrap()]);
                             result.insert(item_active_property, val);
                         }
                     }
@@ -506,7 +506,7 @@ impl Context {
                         )?;
                         if data.contains_key("@list") {
                             if !compacted_item.is_array() {
-                                compacted_item = Value::Array(vec![compacted_item].into());
+                                compacted_item = Value::Array(vec![compacted_item]);
                             }
 
                             if container != Some("@list") {
@@ -551,6 +551,7 @@ impl Context {
                                 result.insert(item_active_property.clone(), Value::Object(map));
                             }
 
+                            #[allow(clippy::redundant_closure)]
                             let map_object = result
                                 .get_mut(&item_active_property)
                                 .and_then(|f| f.as_object_mut())
@@ -578,7 +579,7 @@ impl Context {
                                 if val.is_array() {
                                     val.as_array_mut().unwrap().push(compacted_item);
                                 } else {
-                                    val = Value::Array(vec![val, compacted_item].into());
+                                    val = Value::Array(vec![val, compacted_item]);
                                 }
 
                                 map_object.insert(map_key.to_owned(), val);
@@ -592,7 +593,7 @@ impl Context {
                                 || expanded_property == "@graph")
                                 && !compacted_item.is_array()
                             {
-                                compacted_item = Value::Array(vec![compacted_item].into());
+                                compacted_item = Value::Array(vec![compacted_item]);
                             }
 
                             if !result.contains_key(&item_active_property) {
@@ -602,7 +603,7 @@ impl Context {
                                 let mut varr = if let Value::Array(ar) = compacted_item {
                                     ar
                                 } else {
-                                    vec![compacted_item].into()
+                                    vec![compacted_item]
                                 };
 
                                 if val.is_array() {
@@ -625,6 +626,7 @@ impl Context {
         }
     }
 
+    #[allow(clippy::cognitive_complexity)]
     fn _compact_iri<T: RemoteContextLoader>(
         &self,
         inverse_context: &InverseContext,
@@ -665,7 +667,7 @@ impl Context {
                     let mut common_language = None;
 
                     // 2.6.3
-                    if list.len() == 0 {
+                    if list.is_empty() {
                         common_language = Some(default_language)
                     }
 
@@ -846,12 +848,12 @@ impl Context {
         let mut compact_iri: Option<String> = None;
         for (term, def) in &self.terms {
             // 5.1
-            if term.contains(":") {
+            if term.contains(':') {
                 continue;
             }
 
             // 5.2
-            if &def.iri_mapping == iri || !iri.starts_with(&def.iri_mapping) {
+            if def.iri_mapping == iri || !iri.starts_with(&def.iri_mapping) {
                 continue;
             }
 
@@ -861,7 +863,7 @@ impl Context {
             let is_less = compact_iri == None
                 || (candidate.len() < compact_iri.as_ref().unwrap().len())
                 || (candidate.len() == compact_iri.as_ref().unwrap().len()
-                    && &candidate < compact_iri.as_ref().unwrap());
+                    && candidate < *compact_iri.as_ref().unwrap());
             if is_less
                 && (!self.terms.contains_key(&candidate)
                     || (self.terms[&candidate].iri_mapping == iri && value == None))
@@ -879,7 +881,7 @@ impl Context {
             //            println!("todo transform IRI this is bad");
         }
 
-        return Ok(iri.to_owned());
+        Ok(iri.to_owned())
     }
 
     fn _compact_value<T: RemoteContextLoader>(

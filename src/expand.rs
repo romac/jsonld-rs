@@ -148,6 +148,7 @@ impl Context {
         Value::Object(resmap)
     }
 
+    #[allow(clippy::cognitive_complexity)]
     async fn _expand<T: RemoteContextLoader>(
         active_context: Context,
         active_property: Option<String>,
@@ -210,7 +211,7 @@ impl Context {
                     // ugly hack to make the active_context survive
                     let (_, ctx) = await!(active_context
                         .process_context::<T>(map.remove("@context").unwrap(), HashMap::new()))
-                    .map_err(|e| ExpansionError::ContextExpansionError(e))?;
+                    .map_err(ExpansionError::ContextExpansionError)?;
 
                     ctx
                 } else {
@@ -231,12 +232,12 @@ impl Context {
                     let prop = active_context.expand_iri(&key, false, true);
 
                     // 7.3
-                    if !prop.contains(":") && !prop.starts_with("@") {
+                    if !prop.contains(':') && !prop.starts_with('@') {
                         continue;
                     }
 
                     // 7.4
-                    if prop.starts_with("@") {
+                    if prop.starts_with('@') {
                         let expanded_value: Value;
 
                         // 7.4.1
@@ -355,7 +356,7 @@ impl Context {
 
                                 if !tex.is_array() {
                                     // XXX test compact-0004
-                                    expanded_value = Value::Array(vec![tex].into());
+                                    expanded_value = Value::Array(vec![tex]);
                                 } else {
                                     expanded_value = tex;
                                 }
@@ -526,8 +527,7 @@ impl Context {
                                         let mut ar = Vec::new();
                                         for (index, mut index_value) in obj {
                                             if !index_value.is_array() {
-                                                index_value =
-                                                    Value::Array(vec![index_value].into());
+                                                index_value = Value::Array(vec![index_value]);
                                             }
 
                                             let pinned: Pin<Box<dyn Future<Output = _>>> =
@@ -593,7 +593,7 @@ impl Context {
                                         Value::Object(obj) => {
                                             if !obj.contains_key("@list") {
                                                 expanded_value =
-                                                    Value::Array(vec![Value::Object(obj)].into());
+                                                    Value::Array(vec![Value::Object(obj)]);
                                                 let mut map = Map::new();
                                                 map.insert("@list".to_string(), expanded_value);
                                                 expanded_value = Value::Object(map);
@@ -627,7 +627,7 @@ impl Context {
                                     let mut ar = if let Value::Array(array) = expanded_value {
                                         array
                                     } else {
-                                        vec![expanded_value].into()
+                                        vec![expanded_value]
                                     };
 
                                     // 7.10.4
@@ -660,7 +660,7 @@ impl Context {
                         }
 
                         if !expanded_value.is_array() {
-                            expanded_value = Value::Array(vec![expanded_value].into());
+                            expanded_value = Value::Array(vec![expanded_value]);
                         }
 
                         // 7.11
@@ -715,7 +715,7 @@ impl Context {
                     result.insert(
                         "@type".to_owned(),
                         if typeval.is_string() {
-                            Value::Array(vec![typeval].into())
+                            Value::Array(vec![typeval])
                         } else {
                             typeval
                         },
@@ -726,10 +726,11 @@ impl Context {
                     }
 
                     return Ok(result.remove("@set").unwrap());
-                } else if result.contains_key("@list") {
-                    if result.len() > 2 || (result.len() == 2 && !result.contains_key("@index")) {
-                        return Err(ExpansionError::InvalidListObject);
-                    }
+                } else if result.contains_key("@list")
+                    && result.len() > 2
+                    && (result.len() == 2 && !result.contains_key("@index"))
+                {
+                    return Err(ExpansionError::InvalidListObject);
                 }
 
                 if result.len() == 1 && result.contains_key("@language") {
@@ -737,12 +738,11 @@ impl Context {
                 } else if active_property == None
                     || active_property.as_ref().map(String::as_str) == Some("@graph")
                 {
-                    if result.len() == 0
+                    if result.is_empty()
                         || result.contains_key("@value")
                         || result.contains_key("@list")
+                        || result.len() == 1 && result.contains_key("@id")
                     {
-                        Ok(Value::Null)
-                    } else if result.len() == 1 && result.contains_key("@id") {
                         Ok(Value::Null)
                     } else {
                         Ok(Value::Object(result))
@@ -789,7 +789,7 @@ impl Context {
         if val.is_null() {
             Ok(Value::Array(Vec::new()))
         } else if !val.is_array() {
-            Ok(Value::Array(vec![val].into()))
+            Ok(Value::Array(vec![val]))
         } else {
             Ok(val)
         }

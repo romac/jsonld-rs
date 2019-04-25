@@ -50,13 +50,13 @@ pub async fn compact<T: RemoteContextLoader>(
         } else {
             await!(ctx.process_context::<T>(val, HashMap::new()))
         }
-        .map_err(|e| CompactionError::ContextError(e))?;
+        .map_err(CompactionError::ContextError)?;
 
         ctx = c;
     }
 
     let expanded =
-        await!(ctx.expand::<T>(input)).map_err(|e| CompactionError::ExpansionError(e))?;
+        await!(ctx.expand::<T>(input)).map_err(CompactionError::ExpansionError)?;
 
     let context = if let Value::Object(mut val) = context {
         if let Some(val) = val.remove("@context") {
@@ -100,7 +100,7 @@ pub async fn expand<T: RemoteContextLoader>(
         } else {
             await!(ctx.process_context::<T>(val, HashMap::new()))
         }
-        .map_err(|e| ExpansionError::ContextExpansionError(e))?;
+        .map_err(ExpansionError::ContextExpansionError)?;
 
         ctx = c;
     }

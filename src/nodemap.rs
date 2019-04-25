@@ -61,8 +61,11 @@ pub enum Pointer {
 
 impl Pointer {
     /// Translates this `Pointer` to the JSON-LD this was generated from.
+    #[allow(clippy::wrong_self_convention)]
     pub fn to_json(self) -> JValue {
         let mut map = Map::new();
+
+        #[allow(clippy::redundant_closure)]
         match self {
             Pointer::Id(id) => {
                 map.insert("@id".to_owned(), JValue::String(id));
@@ -122,7 +125,7 @@ static EMPTY: Vec<Pointer> = Vec::new();
 impl Entity {
     pub fn new(id: String) -> Entity {
         Entity {
-            id: id,
+            id,
             index: None,
             types: Vec::new(),
             data: HashMap::new(),
@@ -141,12 +144,11 @@ impl Entity {
     ///
     /// If an unknown value is passed in, it will return a new empty array.
     pub fn get_mut(&mut self, val: &str) -> &mut Vec<Pointer> {
-        self.data
-            .entry(val.to_owned())
-            .or_insert_with(|| Vec::new())
+        self.data.entry(val.to_owned()).or_insert_with(Vec::new)
     }
 
     /// Translates this `Entity` to the JSON-LD this was generated from.
+    #[allow(clippy::wrong_self_convention)]
     pub fn to_json(self) -> JValue {
         let mut map = Map::new();
 
@@ -160,6 +162,7 @@ impl Entity {
             JValue::Array(self.types.into_iter().map(JValue::String).collect()),
         );
 
+        #[allow(clippy::redundant_closure)]
         for (k, v) in self.data {
             map.insert(
                 k,
@@ -214,8 +217,14 @@ pub struct DefaultNodeGenerator {
 }
 
 impl DefaultNodeGenerator {
-    pub fn new() -> DefaultNodeGenerator {
-        DefaultNodeGenerator {
+    pub fn new() -> Self {
+        Self::default()
+    }
+}
+
+impl Default for DefaultNodeGenerator {
+    fn default() -> Self {
+        Self {
             i: 0,
             data: HashMap::new(),
         }
@@ -273,8 +282,8 @@ fn make_reference(mut element: Map<String, JValue>) -> Result<Pointer, NodeMapEr
 
     Ok(Pointer::Value(Value {
         value: val,
-        type_id: transpose(typeval.map(|f| nom_string(f)))?,
-        language: transpose(language.map(|f| nom_string(f)))?,
+        type_id: transpose(typeval.map(nom_string))?,
+        language: transpose(language.map(nom_string))?,
     }))
 }
 
@@ -297,6 +306,7 @@ pub fn generate_node_map<T: BlankNodeGenerator>(
     Ok(node_map)
 }
 
+#[allow(clippy::cognitive_complexity)]
 fn _generate_node_map<T>(
     element: JValue,
     node_map: &mut NodeMap,
@@ -487,21 +497,17 @@ where
                         data: HashMap::new(),
                     });
 
-                match active_subject {
-                    SubjectType::Reverse(ref id, ref active_property) => {
-                        // 6.5
-                        let reference = Pointer::Id(id.to_owned());
+                if let SubjectType::Reverse(ref id, ref active_property) = active_subject {
+                    // 6.5
+                    let reference = Pointer::Id(id.to_owned());
 
-                        if node.data.contains_key(active_property) {
-                            node.data.get_mut(active_property).unwrap().push(reference);
-                        } else {
-                            node.data
-                                .insert(active_property.to_owned(), vec![reference]);
-                        }
+                    if node.data.contains_key(active_property) {
+                        node.data.get_mut(active_property).unwrap().push(reference);
+                    } else {
+                        node.data
+                            .insert(active_property.to_owned(), vec![reference]);
                     }
-
-                    _ => {}
-                }
+                };
 
                 if let Some(types) = element.remove("@type") {
                     if let JValue::Array(types) = types {

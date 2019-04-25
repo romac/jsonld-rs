@@ -146,7 +146,7 @@ impl Context {
         defined: &mut HashMap<String, DefineStatus>,
         context: &mut JsonMap<String, Value>,
     ) -> Result<String, TermCreationError> {
-        if val.starts_with("@") {
+        if val.starts_with('@') {
             // 1
             Ok(val.to_string())
         } else {
@@ -163,7 +163,7 @@ impl Context {
                 Ok(term.iri_mapping.clone())
             } else {
                 // 4
-                if let Some(loc) = val.find(":") {
+                if let Some(loc) = val.find(':') {
                     // 4.1
                     let prefix = &val[..loc];
                     let suffix = &val[loc + 1..];
@@ -186,67 +186,59 @@ impl Context {
                             Ok(val.to_owned())
                         }
                     }
+                } else if vocab && self.vocabulary_mapping.is_some() {
+                    // 5
+                    Ok(self.vocabulary_mapping.as_ref().unwrap().to_string() + val)
+                } else if document_relative && self.base_iri.is_some() {
+                    // 6
+                    let base_iri = self.base_iri.as_ref().unwrap();
+                    let joined = base_iri.join(val).unwrap();
+                    Ok(joined.to_string())
                 } else {
-                    if vocab && self.vocabulary_mapping.is_some() {
-                        // 5
-                        Ok(self.vocabulary_mapping.as_ref().unwrap().to_string() + val)
-                    } else if document_relative && self.base_iri.is_some() {
-                        // 6
-                        let base_iri = self.base_iri.as_ref().unwrap();
-                        let joined = base_iri.join(val).unwrap();
-                        Ok(joined.to_string())
-                    } else {
-                        // 7
-                        Ok(val.to_string())
-                    }
+                    // 7
+                    Ok(val.to_string())
                 }
             }
         }
     }
 
     pub(crate) fn expand_iri(&self, val: &str, document_relative: bool, vocab: bool) -> String {
-        if val.starts_with("@") {
+        if val.starts_with('@') {
             // 1
             val.to_string()
+        } else if vocab && self.terms.contains_key(val) {
+            // 3
+            let term = self.terms.get(val).unwrap();
+
+            term.iri_mapping.clone()
         } else {
-            if vocab && self.terms.contains_key(val) {
-                // 3
-                let term = self.terms.get(val).unwrap();
+            // 4
+            if let Some(loc) = val.find(':') {
+                // 4.1
+                let prefix = &val[..loc];
+                let suffix = &val[loc + 1..];
 
-                term.iri_mapping.clone()
-            } else {
-                // 4
-                if let Some(loc) = val.find(":") {
-                    // 4.1
-                    let prefix = &val[..loc];
-                    let suffix = &val[loc + 1..];
-
-                    if prefix == "_" || suffix.starts_with("//") {
-                        // 4.2
-                        val.to_owned()
-                    } else {
-                        if let Some(term) = self.terms.get(prefix).as_ref() {
-                            // 4.4
-                            term.iri_mapping.clone() + suffix
-                        } else {
-                            // 4.5
-                            val.to_owned()
-                        }
-                    }
+                if prefix == "_" || suffix.starts_with("//") {
+                    // 4.2
+                    val.to_owned()
+                } else if let Some(term) = self.terms.get(prefix).as_ref() {
+                    // 4.4
+                    term.iri_mapping.clone() + suffix
                 } else {
-                    if vocab && self.vocabulary_mapping.is_some() {
-                        // 5
-                        self.vocabulary_mapping.as_ref().unwrap().to_string() + val
-                    } else if document_relative && self.base_iri.is_some() {
-                        // 6
-                        let base_iri = self.base_iri.as_ref().unwrap();
-                        let joined = base_iri.join(val).unwrap();
-                        joined.to_string()
-                    } else {
-                        // 7
-                        val.to_string()
-                    }
+                    // 4.5
+                    val.to_owned()
                 }
+            } else if vocab && self.vocabulary_mapping.is_some() {
+                // 5
+                self.vocabulary_mapping.as_ref().unwrap().to_string() + val
+            } else if document_relative && self.base_iri.is_some() {
+                // 6
+                let base_iri = self.base_iri.as_ref().unwrap();
+                let joined = base_iri.join(val).unwrap();
+                joined.to_string()
+            } else {
+                // 7
+                val.to_string()
             }
         }
     }
@@ -310,7 +302,7 @@ impl Context {
                             // 10.2
                             let res =
                                 self.expand_iri_mut(&string, false, true, defined, context)?;
-                            if !res.contains(":") && res != "@id" && res != "@vocab" {
+                            if !res.contains(':') && res != "@id" && res != "@vocab" {
                                 return Err(TermCreationError::InvalidTypeMapping);
                             }
                             Some(res)
@@ -334,7 +326,7 @@ impl Context {
                             // 10.2
                             let res =
                                 self.expand_iri_mut(&string, false, true, defined, context)?;
-                            if !res.contains(":") {
+                            if !res.contains(':') {
                                 return Err(TermCreationError::InvalidIRIMapping);
                             }
                             Some(res)
@@ -367,10 +359,10 @@ impl Context {
                     self.terms.insert(
                         term.to_owned(),
                         Term {
-                            type_mapping: type_mapping,
+                            type_mapping,
                             iri_mapping: reverse_map.unwrap(),
                             reverse: true,
-                            container_mapping: container_mapping,
+                            container_mapping,
                             language_mapping: None,
                         },
                     );
@@ -387,7 +379,7 @@ impl Context {
                                         .expand_iri_mut(&string, false, true, defined, context)?;
                                     if expanded == "@context" {
                                         return Err(TermCreationError::InvalidKeywordAlias);
-                                    } else if !expanded.starts_with("@")
+                                    } else if !expanded.starts_with('@')
                                         && !expanded.starts_with("_:")
                                         && !expanded.contains("://")
                                     {
@@ -407,8 +399,8 @@ impl Context {
                     };
 
                     // 14
-                    if iri_mapping == None && term.contains(":") {
-                        let (first, second) = term.split_at(term.find(":").unwrap());
+                    if iri_mapping == None && term.contains(':') {
+                        let (first, second) = term.split_at(term.find(':').unwrap());
 
                         // 14.1
                         if context.contains_key(first) {
@@ -465,19 +457,17 @@ impl Context {
                     // 17
                     let language_mapping = if type_mapping != None {
                         None
-                    } else {
-                        if let Some(language) = map.remove("@language") {
-                            match language {
-                                // 17.2
-                                Value::String(string) => Some(string.to_lowercase()),
-                                Value::Null => Some("@null".to_owned()),
+                    } else if let Some(language) = map.remove("@language") {
+                        match language {
+                            // 17.2
+                            Value::String(string) => Some(string.to_lowercase()),
+                            Value::Null => Some("@null".to_owned()),
 
-                                // 17.1
-                                _ => return Err(TermCreationError::InvalidLanguageMapping),
-                            }
-                        } else {
-                            None
+                            // 17.1
+                            _ => return Err(TermCreationError::InvalidLanguageMapping),
                         }
+                    } else {
+                        None
                     };
 
                     // 18
@@ -485,11 +475,11 @@ impl Context {
                     self.terms.insert(
                         term.to_string(),
                         Term {
-                            type_mapping: type_mapping,
+                            type_mapping,
                             iri_mapping: iri_mapping.unwrap(),
                             reverse: false,
-                            container_mapping: container_mapping,
-                            language_mapping: language_mapping,
+                            container_mapping,
+                            language_mapping,
                         },
                     );
                 }
@@ -543,7 +533,7 @@ impl Context {
                         None => {
                             // 3.2.3
                             let dereferenced = await!(T::load_context(val.to_owned()))
-                                .map_err(|e| ContextCreationError::RemoteContextError(e))?;
+                                .map_err(ContextCreationError::RemoteContextError)?;
                             remote_contexts.insert(val.to_owned(), None);
 
                             if let Value::Object(mut obj) = dereferenced {
@@ -618,7 +608,7 @@ impl Context {
                         let key = map.keys().next().unwrap().clone();
                         let val = map.remove(&key).unwrap();
                         self.create_term(&mut map, &key, val, &mut defined)
-                            .map_err(|e| ContextCreationError::InvalidTerm(e))?;
+                            .map_err(ContextCreationError::InvalidTerm)?;
                     }
                 }
                 // 3.3
