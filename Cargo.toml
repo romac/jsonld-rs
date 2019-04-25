@@ -14,3 +14,14 @@ url = "1.7"
 [dev-dependencies]
 tokio = { version = "0.1", features = ["async-await-preview"] }
 tokio-async-await = "0.1"
+lazy_static = "1.3.0"
+
+[[test]]
+name = "expand"
+path = "tests/test_expand.rs"
+harness = false
+
+[[test]]
+name = "compact"
+path = "tests/test_compact.rs"
+harness = false
