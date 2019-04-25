@@ -5,12 +5,12 @@
 #![feature(rustc_attrs)]
 #![feature(test)]
 
-extern crate jsonld;
-extern crate serde;
+
+
 #[macro_use]
 extern crate serde_derive;
-extern crate serde_json;
-extern crate url;
+use serde_json;
+
 
 use jsonld::{expand, JsonLdOptions, RemoteContextLoader};
 use serde_json::Value;
@@ -57,7 +57,7 @@ struct TestContextLoader {}
 
 impl RemoteContextLoader for TestContextLoader {
     type Error = !;
-    type Future = Pin<Box<Future<Output = Result<Value, Self::Error>>>>;
+    type Future = Pin<Box<dyn Future<Output = Result<Value, Self::Error>>>>;
 
     fn load_context(_url: String) -> Self::Future {
         Box::pin(async { Ok(Value::Null) })

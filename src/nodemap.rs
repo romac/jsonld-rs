@@ -25,7 +25,7 @@ pub enum NodeMapError {
 }
 
 impl fmt::Display for NodeMapError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str(self.description())
     }
 }
@@ -41,7 +41,7 @@ impl Error for NodeMapError {
         }
     }
 
-    fn cause(&self) -> Option<&Error> {
+    fn cause(&self) -> Option<&dyn Error> {
         None
     }
 }

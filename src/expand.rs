@@ -61,7 +61,7 @@ pub enum ExpansionError<T: RemoteContextLoader> {
 }
 
 impl<T: RemoteContextLoader> fmt::Display for ExpansionError<T> {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match *self {
             ExpansionError::ContextExpansionError(ref err) => {
                 write!(f, "context expansion error: {}", err)
@@ -93,7 +93,7 @@ impl<T: RemoteContextLoader> Error for ExpansionError<T> {
         }
     }
 
-    fn cause(&self) -> Option<&Error> {
+    fn cause(&self) -> Option<&dyn Error> {
         match *self {
             ExpansionError::ContextExpansionError(ref err) => Some(err),
             _ => None,
@@ -161,7 +161,7 @@ impl Context {
                 let mut res = Vec::new();
                 for item in arr {
                     // 3.2.1
-                    let pinned: Pin<Box<Future<Output = _>>> = Box::pin(Context::_expand::<T>(
+                    let pinned: Pin<Box<dyn Future<Output = _>>> = Box::pin(Context::_expand::<T>(
                         active_context.clone(),
                         active_property.clone(),
                         item,
@@ -288,7 +288,7 @@ impl Context {
 
                             // 7.4.5
                             "@graph" => {
-                                let pinned: Pin<Box<Future<Output = _>>> =
+                                let pinned: Pin<Box<dyn Future<Output = _>>> =
                                     Box::pin(Context::_expand::<T>(
                                         active_context.clone(),
                                         Some(prop.to_owned()),
@@ -338,7 +338,7 @@ impl Context {
 
                                 // 7.4.9.2
 
-                                let pinned: Pin<Box<Future<Output = _>>> =
+                                let pinned: Pin<Box<dyn Future<Output = _>>> =
                                     Box::pin(Context::_expand::<T>(
                                         active_context.clone(),
                                         active_property.to_owned(),
@@ -363,7 +363,7 @@ impl Context {
 
                             // 7.4.10
                             "@set" => {
-                                let pinned: Pin<Box<Future<Output = _>>> =
+                                let pinned: Pin<Box<dyn Future<Output = _>>> =
                                     Box::pin(Context::_expand::<T>(
                                         active_context.clone(),
                                         active_property.to_owned(),
@@ -376,7 +376,7 @@ impl Context {
                             "@reverse" => {
                                 if let Value::Object(obj) = value {
                                     // 7.4.11.1
-                                    let pinned: Pin<Box<Future<Output = _>>> =
+                                    let pinned: Pin<Box<dyn Future<Output = _>>> =
                                         Box::pin(Context::_expand::<T>(
                                             active_context.clone(),
                                             Some(prop),
@@ -530,7 +530,7 @@ impl Context {
                                                     Value::Array(vec![index_value].into());
                                             }
 
-                                            let pinned: Pin<Box<Future<Output = _>>> =
+                                            let pinned: Pin<Box<dyn Future<Output = _>>> =
                                                 Box::pin(Context::_expand::<T>(
                                                     active_context.clone(),
                                                     Some(key.to_owned()),
@@ -569,7 +569,7 @@ impl Context {
 
                         // 7.7
                         if expanded_value == None {
-                            let pinned: Pin<Box<Future<Output = _>>> =
+                            let pinned: Pin<Box<dyn Future<Output = _>>> =
                                 Box::pin(Context::_expand::<T>(
                                     active_context.to_owned(),
                                     Some(key.to_owned()),

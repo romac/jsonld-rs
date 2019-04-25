@@ -39,7 +39,7 @@ pub enum CompactionError<T: RemoteContextLoader> {
 }
 
 impl<T: RemoteContextLoader> fmt::Display for CompactionError<T> {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str(self.description())
     }
 }
@@ -61,7 +61,7 @@ impl<T: RemoteContextLoader> Error for CompactionError<T> {
         }
     }
 
-    fn cause(&self) -> Option<&Error> {
+    fn cause(&self) -> Option<&dyn Error> {
         match *self {
             CompactionError::ContextError(ref err) => Some(err),
             CompactionError::ExpansionError(ref err) => Some(err),

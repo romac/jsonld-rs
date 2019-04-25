@@ -32,7 +32,7 @@ pub enum TermCreationError {
 }
 
 impl fmt::Display for TermCreationError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str(self.description())
     }
 }
@@ -52,7 +52,7 @@ impl Error for TermCreationError {
         }
     }
 
-    fn cause(&self) -> Option<&Error> {
+    fn cause(&self) -> Option<&dyn Error> {
         None
     }
 }
@@ -73,7 +73,7 @@ pub enum ContextCreationError<T: RemoteContextLoader> {
 }
 
 impl<T: RemoteContextLoader> fmt::Display for ContextCreationError<T> {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match *self {
             ContextCreationError::InvalidTerm(ref err) => write!(f, "invalid term: {}", err),
             ContextCreationError::RemoteContextError(ref err) => {
@@ -99,7 +99,7 @@ impl<T: RemoteContextLoader> Error for ContextCreationError<T> {
         }
     }
 
-    fn cause(&self) -> Option<&Error> {
+    fn cause(&self) -> Option<&dyn Error> {
         match *self {
             ContextCreationError::InvalidTerm(ref err) => Some(err),
             ContextCreationError::RemoteContextError(_) => None,
@@ -530,7 +530,7 @@ impl Context {
                     match remote_contexts.get(&val).cloned() {
                         Some(None) => return Err(ContextCreationError::RecursiveContextInclusion),
                         Some(Some(context)) => {
-                            let pinned: Pin<Box<Future<Output = _>>> = Box::pin(
+                            let pinned: Pin<Box<dyn Future<Output = _>>> = Box::pin(
                                 self.process_context::<T>(context.clone(), remote_contexts),
                             );
                             let (rc, s) = await!(pinned)?;
@@ -552,7 +552,7 @@ impl Context {
                                     .unwrap_or_else(|| Value::Object(JsonMap::new()));
 
                                 // 3.2.4
-                                let pinned: Pin<Box<Future<Output = _>>> = Box::pin(
+                                let pinned: Pin<Box<dyn Future<Output = _>>> = Box::pin(
                                     self.process_context::<T>(context.clone(), remote_contexts),
                                 );
                                 let (rc, s) = await!(pinned)?;

@@ -1,19 +1,15 @@
 #![feature(async_await)]
 #![feature(await_macro)]
 #![feature(const_vec_new)]
-#![feature(futures_api)]
-// #![feature(gen_future)]
-// #![feature(generator_trait)]
-// #![feature(generators)]
 #![feature(never_type)]
 
 #[macro_use]
 extern crate lazy_static;
 
-extern crate url;
 
-extern crate serde;
-extern crate serde_json;
+
+
+use serde_json;
 
 mod compact;
 mod context;
